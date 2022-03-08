@@ -7,22 +7,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class UserDao implements  IUserDao{
-    private String jdbcURL = "jdbc:mysql://localhost:3306/demo?useSSL=false";
-    private String jdbcUsername = "root";
-    private String jdbcPassword = "123456";
+ Connection connection = DBConnection.getConnection();
 
     private static final String INSERT_USERS_SQL = "INSERT INTO users (name, email, country) VALUES (?, ?, ?);";
     private static final String SELECT_USER_BY_ID = "select id,name,email,country from users where id =?";
     private static final String SELECT_ALL_USERS = "select * from users";
     private static final String DELETE_USERS_SQL = "delete from users where id = ?;";
     private static final String UPDATE_USERS_SQL = "update users set name = ?,email= ?, country =? where id = ?;";
-    Connection connection = getConnection();
     protected Connection getConnection(){
         Connection connection = null;
         try {
             Class.forName("com.mysql.jdbc.Driver");
-            connection = DriverManager.getConnection(jdbcURL,jdbcUsername,jdbcPassword);
-        } catch (ClassNotFoundException | SQLException e) {
+        } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
         return connection;
@@ -94,6 +90,34 @@ public class UserDao implements  IUserDao{
         preparedStatement.setInt(4,user.getId());
         isUpdated = preparedStatement.executeUpdate() > 0;
         return isUpdated;
+    }
+
+    @Override
+    public User getUserById(int id) {
+        User user = new User();
+        try {
+            CallableStatement callableStatement = connection.prepareCall("call get_user_by_id(?)");
+            callableStatement.setInt(1,id);
+            ResultSet resultSet = callableStatement.executeQuery();
+            while(resultSet.next()){
+                String name = resultSet.getString("name");
+                String email = resultSet.getString("email");
+                String country = resultSet.getString("country");
+                user = new User(id,name,email,country);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return user;
+    }
+
+    @Override
+    public void insertUserStore(User user) throws SQLException {
+        CallableStatement callableStatement = connection.prepareCall("call insert_user(?,?,?)");
+        callableStatement.setString(1,user.getName());
+        callableStatement.setString(2,user.getEmail());
+        callableStatement.setString(3,user.getCountry());
+        callableStatement.executeUpdate();
     }
 
     private void printSQLException(SQLException ex) {
